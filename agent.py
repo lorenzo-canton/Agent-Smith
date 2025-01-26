@@ -8,7 +8,10 @@ MODEL = CONFIG["model"]
 
 class Agent:
     def __init__(self):
-        self.client = OpenAI(api_key=API_KEY, base_url="https://api.deepseek.com")
+        self.client = OpenAI(
+            api_key=API_KEY, 
+            base_url=CONFIG["base_url"]  # Usa il base_url dal config
+        )
         self.system_prompt = {
             "role": "system",
             "content": """
