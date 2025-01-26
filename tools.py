@@ -1,5 +1,8 @@
 import json
+import os
 from datetime import datetime
+
+TASKS_FILE = "scheduled_tasks.json"
 
 tools = [
     {
@@ -54,8 +57,43 @@ tools = [
                 "required": ["content"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_scheduled_tasks",
+            "description": "Get list of all scheduled tasks",
+            "parameters": {
+                "type": "object",
+                "properties": {}
+            }
+        }
     }
 ]
+
+def save_task(task_data):
+    """Save scheduled task to JSON file"""
+    try:
+        # Create file if it doesn't exist
+        if not os.path.exists(TASKS_FILE):
+            with open(TASKS_FILE, 'w') as f:
+                json.dump([], f)
+                
+        # Read existing tasks
+        with open(TASKS_FILE, 'r') as f:
+            tasks = json.load(f)
+            
+        # Add new task
+        tasks.append(task_data)
+        
+        # Save updated list
+        with open(TASKS_FILE, 'w') as f:
+            json.dump(tasks, f, indent=2)
+            
+        return True
+    except Exception as e:
+        print(f"Error saving task: {e}")
+        return False
 
 def handle_tool_call(tool_call):
     args = json.loads(tool_call.function.arguments)
@@ -69,8 +107,30 @@ def handle_tool_call(tool_call):
         try:
             task_time = datetime.strptime(args['datetime'], "%Y-%m-%d %H:%M")
             periodicity = "recurring" if args['is_periodic'] else "one-time"
+            
+            # Create task data structure
+            task_data = {
+                "task_objective": args['task_objective'],
+                "scheduled_time": args['datetime'],
+                "periodicity": periodicity,
+                "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            
+            # Save the task
+            save_task(task_data)
+            
             return f"Task '{args['task_objective']}' scheduled for {task_time.strftime('%Y-%m-%d %H:%M')} ({periodicity})"
         except ValueError as e:
             return f"Error scheduling task: {str(e)}"
     
+    if tool_call.function.name == "get_scheduled_tasks":
+        try:
+            if os.path.exists(TASKS_FILE):
+                with open(TASKS_FILE, 'r') as f:
+                    tasks = json.load(f)
+                return json.dumps(tasks, indent=2)
+            return "No scheduled tasks found"
+        except Exception as e:
+            return f"Error reading tasks: {str(e)}"
+            
     return "Unknown tool"

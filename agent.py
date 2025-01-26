@@ -21,6 +21,7 @@ class Agent:
             - Weather request: get_weather → final_response("Rome has 24℃")
             - Task scheduling: schedule_task → final_response("Reminder set for [datetime]")
             - Math calculations: calculator → final_response("Result is 42")
+            - Get scheduled tasks: get_scheduled_tasks → final_response("List of tasks...")
             
             Guidelines:
             1. Keep conversations concise
@@ -62,7 +63,6 @@ class Agent:
                 if tool_call.function.name == "final_response":
                     final_args = json.loads(tool_call.function.arguments)
                     final_response = final_args['content']
-                    print(f"\n=== Final Response ===")
                     break
                     
                 tool_result = handle_tool_call(tool_call)
