@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 import json
 from pathlib import Path
 from agent import Agent
-from tools import tools, handle_tool_call
+from tools import tools, handle_tool_call, TASKS_FILE
 
 class TestAgent(unittest.TestCase):
     def setUp(self):
@@ -78,8 +78,8 @@ class TestAgent(unittest.TestCase):
 class TestTools(unittest.TestCase):
     def setUp(self):
         # Clear any existing tasks before each test
-        if Path("scheduled_tasks.json").exists():
-            Path("scheduled_tasks.json").unlink()
+        if Path(TASKS_FILE).exists():
+            Path(TASKS_FILE).unlink()
 
     def test_handle_tool_call_weather(self):
         mock_call = MagicMock()
@@ -90,52 +90,57 @@ class TestTools(unittest.TestCase):
         self.assertEqual(result, "Paris, France: 24℃")
         
     def test_handle_tool_call_schedule(self):
-        test_cases = [
-            {
-                "input": {
-                    'task_objective': 'Test task',
-                    'datetime': '2024-01-01 12:00',
-                    'is_periodic': False
-                },
-                "expected": "Task 'Test task' scheduled for 2024-01-01 12:00 (one-time)"
-            },
-            {
-                "input": {
-                    'task_objective': 'Daily standup',
-                    'datetime': '2024-01-02 09:30',
-                    'is_periodic': True
-                },
-                "expected": "Task 'Daily standup' scheduled for 2024-01-02 09:30 (recurring)"
-            }
-        ]
-        
-        for case in test_cases:
-            mock_call = MagicMock()
-            mock_call.function.name = 'schedule_task'
-            mock_call.function.arguments = json.dumps(case["input"])
-            
-            result = handle_tool_call(mock_call)
-            self.assertEqual(result, case["expected"])
-            
-            # Verify task was saved
-            tasks = json.loads(Path("scheduled_tasks.json").read_text())
-            self.assertEqual(len(tasks), 1)
-            self.assertEqual(tasks[0]['task_objective'], case["input"]['task_objective'])
-            Path("scheduled_tasks.json").unlink()  # Clean up after each test
-
-    def test_handle_tool_call_schedule_invalid(self):
         mock_call = MagicMock()
         mock_call.function.name = 'schedule_task'
         mock_call.function.arguments = json.dumps({
-            'task_objective': 'Invalid date',
-            'datetime': 'invalid-date',
-            'is_periodic': False
+            'cron_expression': '0 9 * * 1-5',
+            'objectives': ['Daily standup']
         })
         
         result = handle_tool_call(mock_call)
-        self.assertTrue("Error scheduling task" in result)
-        self.assertFalse(Path("scheduled_tasks.json").exists())
+        self.assertEqual(result, "Tasks scheduled with cron expression: 0 9 * * 1-5")
         
+        # Verify task was saved
+        with open(TASKS_FILE, 'r') as f:
+            tasks = json.load(f)
+            self.assertIn('0 9 * * 1-5', tasks)
+            self.assertEqual(tasks['0 9 * * 1-5'], ['Daily standup'])
+
+    def test_handle_tool_call_schedule_multiple_objectives(self):
+        mock_call = MagicMock()
+        mock_call.function.name = 'schedule_task'
+        mock_call.function.arguments = json.dumps({
+            'cron_expression': '0 12 * * *',
+            'objectives': ['Lunch break', 'Team sync']
+        })
+        
+        result = handle_tool_call(mock_call)
+        self.assertEqual(result, "Tasks scheduled with cron expression: 0 12 * * *")
+        
+        # Verify tasks were saved
+        with open(TASKS_FILE, 'r') as f:
+            tasks = json.load(f)
+            self.assertEqual(tasks['0 12 * * *'], ['Lunch break', 'Team sync'])
+
+    def test_handle_tool_call_get_scheduled_tasks(self):
+        # First add some test data
+        with open(TASKS_FILE, 'w') as f:
+            json.dump({
+                '0 9 * * 1-5': ['Daily standup'],
+                '0 12 * * *': ['Lunch break']
+            }, f)
+        
+        mock_call = MagicMock()
+        mock_call.function.name = 'get_scheduled_tasks'
+        mock_call.function.arguments = '{}'
+        
+        result = handle_tool_call(mock_call)
+        expected_output = """Cron: 0 9 * * 1-5
+ - Daily standup
+Cron: 0 12 * * *
+ - Lunch break"""
+        self.assertEqual(result, expected_output)
+
     def test_handle_tool_call_unknown(self):
         mock_call = MagicMock()
         mock_call.function.name = 'unknown_tool'

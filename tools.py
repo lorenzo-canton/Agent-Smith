@@ -23,24 +23,21 @@ tools = [
         "type": "function",
         "function": {
             "name": "schedule_task",
-            "description": "Schedule a reminder or task to execute at specific time",
+            "description": "Schedule a task using cron expression",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "task_objective": {
-                        "type": "string", 
-                        "description": "Detailed description of the task to remember"
+                    "cron_expression": {
+                        "type": "string",
+                        "description": "Cron expression for scheduling (e.g., '0 9 * * 1-5' for weekdays at 9am)"
                     },
-                    "datetime": {
-                        "type": "string", 
-                        "description": "Date and time in YYYY-MM-DD HH:MM format, must be in the future"
-                    },
-                    "is_periodic": {
-                        "type": "boolean", 
-                        "description": "Whether the reminder should repeat daily at the same time"
+                    "objectives": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of objectives to schedule"
                     }
                 },
-                "required": ["task_objective", "datetime", "is_periodic"]
+                "required": ["cron_expression", "objectives"]
             }
         }
     },
@@ -74,17 +71,25 @@ tools = [
 def save_task(task_data):
     """Save scheduled task to JSON file"""
     try:
+        # Validate cron expression format
+        cron_parts = task_data["cron_expression"].split()
+        if len(cron_parts) != 5:
+            raise ValueError("Invalid cron expression - must have 5 parts")
+            
         # Create file if it doesn't exist
         if not os.path.exists(TASKS_FILE):
             with open(TASKS_FILE, 'w') as f:
-                json.dump([], f)
+                json.dump({}, f)
                 
         # Read existing tasks
         with open(TASKS_FILE, 'r') as f:
             tasks = json.load(f)
             
         # Add new task
-        tasks.append(task_data)
+        cron_expr = task_data["cron_expression"]
+        if cron_expr not in tasks:
+            tasks[cron_expr] = []
+        tasks[cron_expr].extend(task_data["objectives"])
         
         # Save updated list
         with open(TASKS_FILE, 'w') as f:
@@ -105,22 +110,13 @@ def handle_tool_call(tool_call):
     
     if tool_call.function.name == "schedule_task":
         try:
-            task_time = datetime.strptime(args['datetime'], "%Y-%m-%d %H:%M")
-            periodicity = "recurring" if args['is_periodic'] else "one-time"
-            
-            # Create task data structure
             task_data = {
-                "task_objective": args['task_objective'],
-                "scheduled_time": args['datetime'],
-                "periodicity": periodicity,
-                "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                "cron_expression": args["cron_expression"],
+                "objectives": args["objectives"]
             }
-            
-            # Save the task
             save_task(task_data)
-            
-            return f"Task '{args['task_objective']}' scheduled for {task_time.strftime('%Y-%m-%d %H:%M')} ({periodicity})"
-        except ValueError as e:
+            return f"Tasks scheduled with cron expression: {args['cron_expression']}"
+        except Exception as e:
             return f"Error scheduling task: {str(e)}"
     
     if tool_call.function.name == "get_scheduled_tasks":
@@ -128,7 +124,12 @@ def handle_tool_call(tool_call):
             if os.path.exists(TASKS_FILE):
                 with open(TASKS_FILE, 'r') as f:
                     tasks = json.load(f)
-                return json.dumps(tasks, indent=2)
+                # Format the output for better readability
+                formatted_tasks = []
+                for cron_expr, objectives in tasks.items():
+                    formatted_tasks.append(f"Cron: {cron_expr}")
+                    formatted_tasks.extend([f" - {obj}" for obj in objectives])
+                return "\n".join(formatted_tasks)
             return "No scheduled tasks found"
         except Exception as e:
             return f"Error reading tasks: {str(e)}"

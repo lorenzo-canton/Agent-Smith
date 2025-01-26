@@ -19,9 +19,17 @@ class Agent:
             
             Usage examples:
             - Weather request: get_weather → final_response("Rome has 24℃")
-            - Task scheduling: schedule_task → final_response("Reminder set for [datetime]")
-            - Math calculations: calculator → final_response("Result is 42")
+            - Task scheduling: schedule_task → final_response("Task scheduled with cron expression: 0 9 * * 1-5")
             - Get scheduled tasks: get_scheduled_tasks → final_response("List of tasks...")
+            
+            For scheduling tasks:
+            1. Ask user for cron expression (e.g., "0 9 * * 1-5" for weekdays at 9am)
+            2. Ask for objectives to schedule
+            3. Use schedule_task tool with format:
+            {
+                "cron_expression": "the_cron_expression",
+                "objectives": ["objective1", "objective2"]
+            }
             
             Guidelines:
             1. Keep conversations concise
@@ -86,7 +94,7 @@ if __name__ == "__main__":
     agent = Agent()
     messages = [
         agent.system_prompt,
-        {"role": "user", "content": "Please schedule a daily standup meeting at 9:30 AM starting tomorrow"}
+        {"role": "user", "content": "Please schedule a daily standup meeting at 9:30 AM on weekdays"}
     ]
     print("\n=== Starting Conversation ===")
     print(f"User: {messages[1]['content']}")
