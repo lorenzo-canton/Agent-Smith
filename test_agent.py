@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import json
+from pathlib import Path
 from agent import Agent
 from tools import tools, handle_tool_call
 
@@ -75,6 +76,11 @@ class TestAgent(unittest.TestCase):
         self.assertEqual(result, "Final answer")
 
 class TestTools(unittest.TestCase):
+    def setUp(self):
+        # Clear any existing tasks before each test
+        if Path("scheduled_tasks.json").exists():
+            Path("scheduled_tasks.json").unlink()
+
     def test_handle_tool_call_weather(self):
         mock_call = MagicMock()
         mock_call.function.name = 'get_weather'
@@ -100,14 +106,6 @@ class TestTools(unittest.TestCase):
                     'is_periodic': True
                 },
                 "expected": "Task 'Daily standup' scheduled for 2024-01-02 09:30 (recurring)"
-            },
-            {
-                "input": {
-                    'task_objective': 'Invalid date',
-                    'datetime': 'invalid-date',
-                    'is_periodic': False
-                },
-                "expected": "Error scheduling task: time data 'invalid-date' does not match format '%Y-%m-%d %H:%M'"
             }
         ]
         
@@ -118,6 +116,25 @@ class TestTools(unittest.TestCase):
             
             result = handle_tool_call(mock_call)
             self.assertEqual(result, case["expected"])
+            
+            # Verify task was saved
+            tasks = json.loads(Path("scheduled_tasks.json").read_text())
+            self.assertEqual(len(tasks), 1)
+            self.assertEqual(tasks[0]['task_objective'], case["input"]['task_objective'])
+            Path("scheduled_tasks.json").unlink()  # Clean up after each test
+
+    def test_handle_tool_call_schedule_invalid(self):
+        mock_call = MagicMock()
+        mock_call.function.name = 'schedule_task'
+        mock_call.function.arguments = json.dumps({
+            'task_objective': 'Invalid date',
+            'datetime': 'invalid-date',
+            'is_periodic': False
+        })
+        
+        result = handle_tool_call(mock_call)
+        self.assertTrue("Error scheduling task" in result)
+        self.assertFalse(Path("scheduled_tasks.json").exists())
         
     def test_handle_tool_call_unknown(self):
         mock_call = MagicMock()
