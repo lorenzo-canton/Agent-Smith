@@ -24,9 +24,18 @@ tools = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "task_objective": {"type": "string", "description": "Task description to remember"},
-                    "datetime": {"type": "string", "description": "Date and time in YYYY-MM-DD HH:MM format"},
-                    "is_periodic": {"type": "boolean", "description": "Whether the reminder is recurring"}
+                    "task_objective": {
+                        "type": "string", 
+                        "description": "Detailed description of the task to remember"
+                    },
+                    "datetime": {
+                        "type": "string", 
+                        "description": "Date and time in YYYY-MM-DD HH:MM format, must be in the future"
+                    },
+                    "is_periodic": {
+                        "type": "boolean", 
+                        "description": "Whether the reminder should repeat daily at the same time"
+                    }
                 },
                 "required": ["task_objective", "datetime", "is_periodic"]
             }
@@ -57,7 +66,11 @@ def handle_tool_call(tool_call):
         return f"{args['location']}: 24℃"
     
     if tool_call.function.name == "schedule_task":
-        task_time = datetime.strptime(args['datetime'], "%Y-%m-%d %H:%M")
-        return f"Task '{args['task_objective']}' scheduled for {task_time.strftime('%Y-%m-%d %H:%M')}"
+        try:
+            task_time = datetime.strptime(args['datetime'], "%Y-%m-%d %H:%M")
+            periodicity = "recurring" if args['is_periodic'] else "one-time"
+            return f"Task '{args['task_objective']}' scheduled for {task_time.strftime('%Y-%m-%d %H:%M')} ({periodicity})"
+        except ValueError as e:
+            return f"Error scheduling task: {str(e)}"
     
     return "Unknown tool"

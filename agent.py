@@ -86,7 +86,7 @@ if __name__ == "__main__":
     agent = Agent()
     messages = [
         agent.system_prompt,
-        {"role": "user", "content": "Tell me the weather in Rome every day at 8:00"}
+        {"role": "user", "content": "Please schedule a daily standup meeting at 9:30 AM starting tomorrow"}
     ]
     print("\n=== Starting Conversation ===")
     print(f"User: {messages[1]['content']}")

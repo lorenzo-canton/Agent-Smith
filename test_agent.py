@@ -84,16 +84,40 @@ class TestTools(unittest.TestCase):
         self.assertEqual(result, "Paris, France: 24℃")
         
     def test_handle_tool_call_schedule(self):
-        mock_call = MagicMock()
-        mock_call.function.name = 'schedule_task'
-        mock_call.function.arguments = json.dumps({
-            'task_objective': 'Test task',
-            'datetime': '2024-01-01 12:00',
-            'is_periodic': False
-        })
+        test_cases = [
+            {
+                "input": {
+                    'task_objective': 'Test task',
+                    'datetime': '2024-01-01 12:00',
+                    'is_periodic': False
+                },
+                "expected": "Task 'Test task' scheduled for 2024-01-01 12:00 (one-time)"
+            },
+            {
+                "input": {
+                    'task_objective': 'Daily standup',
+                    'datetime': '2024-01-02 09:30',
+                    'is_periodic': True
+                },
+                "expected": "Task 'Daily standup' scheduled for 2024-01-02 09:30 (recurring)"
+            },
+            {
+                "input": {
+                    'task_objective': 'Invalid date',
+                    'datetime': 'invalid-date',
+                    'is_periodic': False
+                },
+                "expected": "Error scheduling task: time data 'invalid-date' does not match format '%Y-%m-%d %H:%M'"
+            }
+        ]
         
-        result = handle_tool_call(mock_call)
-        self.assertEqual(result, "Task 'Test task' scheduled for 2024-01-01 12:00")
+        for case in test_cases:
+            mock_call = MagicMock()
+            mock_call.function.name = 'schedule_task'
+            mock_call.function.arguments = json.dumps(case["input"])
+            
+            result = handle_tool_call(mock_call)
+            self.assertEqual(result, case["expected"])
         
     def test_handle_tool_call_unknown(self):
         mock_call = MagicMock()
