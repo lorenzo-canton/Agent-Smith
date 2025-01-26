@@ -58,34 +58,55 @@ class Agent:
             if response.content:
                 print(f"Assistant initial response: {response.content}")
             
-            messages.append({
+            # Check for final_response tool call first
+            if response.tool_calls:
+                for tool_call in response.tool_calls:
+                    if tool_call.function.name == "final_response":
+                        final_args = json.loads(tool_call.function.arguments)
+                        final_response = final_args['content']
+                        # Add only the final response to messages
+                        messages.append({
+                            "role": "assistant",
+                            "content": final_response
+                        })
+                        return final_response
+            
+            # Store the assistant's message
+            assistant_message = {
                 "role": "assistant",
-                "content": response.content,
-                "tool_calls": response.tool_calls
-            })
+                "content": response.content
+            }
+            
+            if response.tool_calls:
+                assistant_message["tool_calls"] = [
+                    {
+                        "id": tc.id,
+                        "type": tc.type,
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments
+                        }
+                    }
+                    for tc in response.tool_calls
+                ]
+            
+            messages.append(assistant_message)
             
             if not response.tool_calls:
                 final_response = response.content
                 break
                 
+            # Process other tool calls
             for tool_call in response.tool_calls:
-                if tool_call.function.name == "final_response":
-                    final_args = json.loads(tool_call.function.arguments)
-                    final_response = final_args['content']
-                    break
-                    
                 tool_result = handle_tool_call(tool_call)
                 messages.append({
                     "role": "tool",
-                    "tool_call_id": tool_call.id,
                     "name": tool_call.function.name,
-                    "content": tool_result
+                    "content": tool_result,
+                    "tool_call_id": tool_call.id
                 })
                 print(f"Tool result: {tool_result}")
             
-            if final_response:
-                break
-                
             iteration += 1
                 
         return final_response
@@ -93,12 +114,21 @@ class Agent:
 # Example usage
 if __name__ == "__main__":
     agent = Agent()
-    messages = [
-        agent.system_prompt,
-        {"role": "user", "content": "Please schedule a daily standup meeting at 9:30 AM on weekdays"}
-    ]
-    print("\n=== Starting Conversation ===")
-    print(f"User: {messages[1]['content']}")
-    result = agent.process_conversation(messages)
-    print(f"\n=== Final Answer ===")
-    print(result)
+    messages = [agent.system_prompt]
+    
+    print("\n=== AI Assistant ===")
+    print("Type 'exit' to quit\n")
+    
+    while True:
+        user_input = input("You: ")
+        if user_input.lower() == 'exit':
+            break
+            
+        messages.append({"role": "user", "content": user_input})
+        print("\n=== Processing... ===")
+        result = agent.process_conversation(messages)
+        
+        print(f"\nAssistant: {result}")
+        messages.append({"role": "assistant", "content": result})
+        
+    print("\nGoodbye!")
