@@ -1,5 +1,6 @@
 {
     "api_key": "api_key",
-    "model": "model_name",
-    "base_url": "https://api.deepseek.com"
+    "model": "model_name", 
+    "base_url": "https://api.deepseek.com",
+    "telegram_token": "your_telegram_bot_token"
 }
