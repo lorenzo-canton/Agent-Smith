@@ -54,12 +54,10 @@ def handle_tool_call(tool_call):
     print(f"Arguments: {args}")
     
     if tool_call.function.name == "get_weather":
-        print(f"Weather request for: {args['location']}")
         return f"{args['location']}: 24℃"
     
     if tool_call.function.name == "schedule_task":
         task_time = datetime.strptime(args['datetime'], "%Y-%m-%d %H:%M")
-        print(f"Scheduling task: '{args['task_objective']}' at {task_time}")
         return f"Task '{args['task_objective']}' scheduled for {task_time.strftime('%Y-%m-%d %H:%M')}"
     
     return "Unknown tool"
