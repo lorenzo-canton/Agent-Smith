@@ -122,7 +122,7 @@ class TestTools(unittest.TestCase):
             tasks = json.load(f)
             self.assertEqual(tasks['0 12 * * *'], ['Lunch break', 'Team sync'])
 
-    def test_handle_tool_call_get_scheduled_tasks(self):
+    def test_handle_tool_call_list_all_tasks(self):
         # First add some test data
         with open(TASKS_FILE, 'w') as f:
             json.dump({
@@ -131,14 +131,18 @@ class TestTools(unittest.TestCase):
             }, f)
         
         mock_call = MagicMock()
-        mock_call.function.name = 'get_scheduled_tasks'
+        mock_call.function.name = 'list_all_tasks'
         mock_call.function.arguments = '{}'
         
         result = handle_tool_call(mock_call)
-        expected_output = """Cron: 0 9 * * 1-5
- - Daily standup
-Cron: 0 12 * * *
- - Lunch break"""
+        expected_output = """# Scheduled Tasks
+
+## 0 9 * * 1-5
+- Daily standup
+
+## 0 12 * * *
+- Lunch break
+"""
         self.assertEqual(result, expected_output)
 
     def test_handle_tool_call_unknown(self):

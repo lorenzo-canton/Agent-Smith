@@ -65,6 +65,34 @@ tools = [
                 "properties": {}
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_all_tasks",
+            "description": "Get a markdown formatted list of all scheduled tasks",
+            "parameters": {
+                "type": "object",
+                "properties": {}
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_task_by_objective",
+            "description": "Delete scheduled tasks containing specific objective text",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "objective": {
+                        "type": "string",
+                        "description": "Text to search for in objectives to delete"
+                    }
+                },
+                "required": ["objective"]
+            }
+        }
     }
 ]
 
@@ -100,6 +128,52 @@ def save_task(task_data):
         print(f"Error saving task: {e}")
         return False
 
+def list_all_tasks():
+    """Return all tasks in markdown format"""
+    if not os.path.exists(TASKS_FILE):
+        return "No scheduled tasks found"
+    
+    with open(TASKS_FILE, 'r') as f:
+        tasks = json.load(f)
+        
+    if not tasks:
+        return "No scheduled tasks found"
+        
+    markdown = ["# Scheduled Tasks\n"]
+    for cron_expr, objectives in tasks.items():
+        markdown.append(f"## {cron_expr}")
+        markdown.extend([f"- {obj}" for obj in objectives])
+        markdown.append("")  # Add empty line between groups
+        
+    return "\n".join(markdown)
+
+def delete_task_by_objective(objective):
+    """Delete tasks containing the objective text"""
+    if not os.path.exists(TASKS_FILE):
+        return "No scheduled tasks found"
+        
+    with open(TASKS_FILE, 'r') as f:
+        tasks = json.load(f)
+        
+    deleted = False
+    for cron_expr, objectives in list(tasks.items()):
+        # Remove matching objectives
+        original_count = len(objectives)
+        tasks[cron_expr] = [obj for obj in objectives if objective.lower() not in obj.lower()]
+        
+        # If all objectives removed, delete the cron entry
+        if len(tasks[cron_expr]) == 0:
+            del tasks[cron_expr]
+            deleted = True
+        elif len(tasks[cron_expr]) != original_count:
+            deleted = True
+            
+    if deleted:
+        with open(TASKS_FILE, 'w') as f:
+            json.dump(tasks, f, indent=2)
+        return f"Deleted tasks containing: {objective}"
+    return f"No tasks found containing: {objective}"
+
 def handle_tool_call(tool_call):
     args = json.loads(tool_call.function.arguments)
     print(f"\n=== Handling {tool_call.function.name} ===")
@@ -133,5 +207,11 @@ def handle_tool_call(tool_call):
             return "No scheduled tasks found"
         except Exception as e:
             return f"Error reading tasks: {str(e)}"
+            
+    if tool_call.function.name == "list_all_tasks":
+        return list_all_tasks()
+        
+    if tool_call.function.name == "delete_task_by_objective":
+        return delete_task_by_objective(args["objective"])
             
     return "Unknown tool"

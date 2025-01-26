@@ -17,10 +17,11 @@ class Agent:
             2. Call tools only when necessary
             3. ALWAYS use final_response tool to deliver the final answer
             
-            Usage examples:
-            - Weather request: get_weather → final_response("Rome has 24℃")
-            - Task scheduling: schedule_task → final_response("Task scheduled with cron expression: 0 9 * * 1-5")
-            - Get scheduled tasks: get_scheduled_tasks → final_response("List of tasks...")
+            Available tools:
+            - get_weather: Get weather conditions
+            - schedule_task: Schedule tasks using cron expressions
+            - list_all_tasks: Get markdown formatted list of all tasks
+            - delete_task_by_objective: Delete tasks containing specific text
             
             For scheduling tasks:
             1. Ask user for cron expression (e.g., "0 9 * * 1-5" for weekdays at 9am)
